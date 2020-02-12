@@ -18,17 +18,17 @@ def print_tree(tree, depth=0, indent=4, requirement=None):
     if requirement is None:
         print("{}{}".format(" "*(indent*depth), tree.decision_attribute))
     else:
-        if tree.test_branch is None:
-            str_format = "{} == {} --> {}"
-            if root.leaf_label:
-                print(str_format.format(" " * (indent*depth), requirement, positive_value))
-
-            else:
-                print(str_format.format(" " * (indent*depth), requirement, positive_value))
-
-        else:
+        if tree.leaf_label is 'Node':
             str_format = "{} == {} --> ({} ?)"
             print(str_format.format(" " * (indent*depth), requirement, tree.decision_attribute))
+
+        else:
+            str_format = "{} == {} --> {}"
+            if tree.leaf_label:
+                print(str_format.format(" " * (indent*depth),requirement, positive_value))
+            else:
+                print(str_format.format(" " * (indent*depth),requirement, negative_value))
+
     if tree.test_branch is not None:
         for req_path, child_node in tree.test_branch.items():
             print_tree(child_node, depth=depth+1, requirement=req_path)
