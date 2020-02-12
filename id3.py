@@ -17,6 +17,7 @@ class Node:
         self.test_branch = {}
         self.leaf_label = 'Node'
 
+
 def print_tree(tree, depth=0, indent=4, requirement=None):
     if requirement is None:
         print("{}{}".format(" "*(indent*depth), tree.decision_attribute))
@@ -48,6 +49,7 @@ def print_tree(tree, depth=0, indent=4, requirement=None):
 #             print_tree(root.test_branch[v], tmp, target_attribute)
 #     return
 
+
 def entropy(s, target_attribute):
     if s.empty:
         return 0
@@ -59,6 +61,7 @@ def entropy(s, target_attribute):
         if pi != 0:
             ent += -pi * log2(pi)
     return ent
+
 
 def information_gain(s, target_attribute, attribute):
     s_size = len(s)                            # |S|
@@ -101,10 +104,12 @@ def id3_build_tree(examples, target_attribute, attributes):
             root.test_branch.update({vi: new_node})
     return root
 
+
 def load_config(config_path):
     with open(config_path, 'r') as file:
         data = file.read().replace('\n', '')
     return ast.literal_eval(data)
+
 
 if __name__ == "__main__":
     config_path = sys.argv[1]
