@@ -1,8 +1,11 @@
 # coding=utf-8
+import ast
+import sys
 import pandas as pd
 from math import log2
 from sklearn.preprocessing import LabelEncoder
 import random
+import os
 
 positive_value = 'Yes'
 negative_value = 'No'
@@ -98,14 +101,24 @@ def id3_build_tree(examples, target_attribute, attributes):
             root.test_branch.update({vi: new_node})
     return root
 
-target_attribute = 'play'
-attributes = ['outlook','temp','humidity','wind']
-df = pd.read_csv("play_tennis.csv")
-x = df.drop("day", 1)
+def load_config(config_path):
+    with open(config_path, 'r') as file:
+        data = file.read().replace('\n', '')
+    return ast.literal_eval(data)
 
-id3_tree = id3_build_tree(x, target_attribute, attributes) 
+if __name__ == "__main__":
+    config_path = sys.argv[1]
+    print("Config file path: {}\n".format(config_path))
+    config = load_config(config_path)
 
-# print_tree(id3_tree)
+    target_attribute = config['target_attribute']
+    attributes = config['data_project_columns']
+    df = pd.read_csv(config['data_file'])
 
-print(id3_tree.decision_attribute, id3_tree.leaf_label)
-print_tree(id3_tree)
+    for drop_tuple in config['data_drop']:
+        df = df.drop(drop_tuple[0], drop_tuple[1])
+
+    id3_tree = id3_build_tree(df, target_attribute, attributes) 
+
+    # print(id3_tree.decision_attribute, id3_tree.leaf_label)
+    print_tree(id3_tree)
