@@ -4,9 +4,11 @@ from math import log2
 from sklearn.preprocessing import LabelEncoder
 import random
 
+
 positive_value = 'Yes'
 negative_value = 'No'
 unknown_value = '?'
+
 
 class Node:
     def __init__(self):
@@ -14,20 +16,24 @@ class Node:
         self.test_branch = {}
         self.leaf_label = 'Node'
 
+
 def print_tree(tree, depth=0, indent=4, requirement=None):
     if requirement is None:
         print("{}{}".format(" "*(indent*depth), tree.decision_attribute))
     else:
         if tree.leaf_label is 'Node':
             str_format = "{} == {} --> ({} ?)"
-            print(str_format.format(" " * (indent*depth), requirement, tree.decision_attribute))
+            print(str_format.format(" " * (indent*depth),
+                                    requirement, tree.decision_attribute))
 
         else:
             str_format = "{} == {} --> {}"
             if tree.leaf_label:
-                print(str_format.format(" " * (indent*depth),requirement, positive_value))
+                print(str_format.format(" " * (indent*depth),
+                                        requirement, positive_value))
             else:
-                print(str_format.format(" " * (indent*depth),requirement, negative_value))
+                print(str_format.format(" " * (indent*depth),
+                                        requirement, negative_value))
 
     if tree.test_branch is not None:
         for req_path, child_node in tree.test_branch.items():
@@ -45,6 +51,7 @@ def print_tree(tree, depth=0, indent=4, requirement=None):
 #             print_tree(root.test_branch[v], tmp, target_attribute)
 #     return
 
+
 def entropy(s, target_attribute):
     if s.empty:
         return 0
@@ -56,6 +63,7 @@ def entropy(s, target_attribute):
         if pi != 0:
             ent += -pi * log2(pi)
     return ent
+
 
 def information_gain(s, target_attribute, attribute):
     s_size = len(s)                            # |S|
@@ -69,6 +77,7 @@ def information_gain(s, target_attribute, attribute):
         weighted_entropy_summary += s_size_v * entropy_s_v / s_size
     return entropy_s - weighted_entropy_summary
 
+
 def id3_build_tree(examples, target_attribute, attributes):
     root = Node()
     if (examples[target_attribute] == positive_value).all():
@@ -78,7 +87,7 @@ def id3_build_tree(examples, target_attribute, attributes):
         root.leaf_label = False
         return root
     if not attributes:
-        root.leaf_label = examples[target_attribute].mode()[0] == positive_value
+        root.leaf_label = examples[target_attribute].mode()[0]
         return root
     ig = []
     for attribute in attributes:
@@ -91,21 +100,43 @@ def id3_build_tree(examples, target_attribute, attributes):
         examples_vi = examples[examples[a] == vi]
         if examples.empty:
             new_node = Node()
-            new_node.leaf_label = examples[target_attribute].mode()[0] == positive_value
+            new_node.leaf_label = examples[target_attribute].mode()[
+                0] == positive_value
         else:
-            new_node = id3_build_tree(examples_vi, target_attribute, [i for i in attributes if i != a])
+            new_node = id3_build_tree(examples_vi, target_attribute, [
+                                      i for i in attributes if i != a])
         if vi != unknown_value:
             root.test_branch.update({vi: new_node})
     return root
 
+
+def replace_missing_atribute(df):
+    modeList = {}
+    mode = df.mode()
+    for label, content in df.items():
+        modeList[label] = mode[label][0]
+
+    i = 1
+    for label, content in df.iteritems():
+        df[label][df[label] == unknown_value] = modeList[label]
+    return df
+
+
 target_attribute = 'play'
-attributes = ['outlook','temp','humidity','wind']
+attributes = ['outlook', 'temp', 'humidity', 'wind']
 df = pd.read_csv("play_tennis.csv")
 x = df.drop("day", 1)
 
-id3_tree = id3_build_tree(x, target_attribute, attributes) 
 
-# print_tree(id3_tree)
+print("SEBELUM:")
+print(x)
+
+
+print("SESUDAH: ")
+print(replace_missing_atribute(x))
+
+
+id3_tree = id3_build_tree(x, target_attribute, attributes)
+
 
 print(id3_tree.decision_attribute, id3_tree.leaf_label)
-print_tree(id3_tree)
