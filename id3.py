@@ -1,5 +1,6 @@
 # coding=utf-8
 import pandas as pd
+import numpy as np
 from math import log2
 from sklearn.preprocessing import LabelEncoder
 import random
@@ -10,40 +11,29 @@ unknown_value = '?'
 
 class Node:
     def __init__(self):
-        self.decision_attribute = ''
-        self.test_branch = {}
-        self.leaf_label = 'Node'
+        self.value = ''
+        self.children = {}
+        self.label = 'Node'
 
-def print_tree(tree, depth=0, indent=4, requirement=None):
+def print_tree(root, depth=0, indent=4, requirement=None):
     if requirement is None:
-        print("{}{}".format(" "*(indent*depth), tree.decision_attribute))
+        print("{}{}".format(" "*(indent*depth), root.value))
     else:
-        if tree.leaf_label is 'Node':
+        
+        if root.label is 'Node':
             str_format = "{} == {} --> ({} ?)"
-            print(str_format.format(" " * (indent*depth), requirement, tree.decision_attribute))
+            print(str_format.format(" " * (indent*depth), requirement, root.value))
 
         else:
             str_format = "{} == {} --> {}"
-            if tree.leaf_label:
+            if root.label:
                 print(str_format.format(" " * (indent*depth),requirement, positive_value))
             else:
                 print(str_format.format(" " * (indent*depth),requirement, negative_value))
 
-    if tree.test_branch is not None:
-        for req_path, child_node in tree.test_branch.items():
+    if root.children is not None:
+        for req_path, child_node in root.children.items():
             print_tree(child_node, depth=depth+1, requirement=req_path)
-
-# def print_tree(root, key_value_string, target_attribute):
-#     if root.leaf_label != 'Node':
-#         if root.leaf_label:
-#             print(key_value_string + '\b\b\b\b' + ' → ' + '[' + target_attribute + ' = ' + positive_value + ']')
-#         else:
-#             print(key_value_string + '\b\b\b\b' + ' → ' + '[' + target_attribute + ' = ' + negative_value + ']')
-#     if root.leaf_label == 'Node':
-#         for v in root.test_branch.keys():
-#             tmp = key_value_string + '[' + root.decision_attribute + ' = ' + str(v) + '] ' + ' ∧ '
-#             print_tree(root.test_branch[v], tmp, target_attribute)
-#     return
 
 def entropy(s, target_attribute):
     if s.empty:
@@ -71,41 +61,88 @@ def information_gain(s, target_attribute, attribute):
 
 def id3_build_tree(examples, target_attribute, attributes):
     root = Node()
+
     if (examples[target_attribute] == positive_value).all():
-        root.leaf_label = True
+        root.label = True
         return root
+    
     if (examples[target_attribute] == negative_value).all():
-        root.leaf_label = False
+        root.label = False
         return root
+    
     if not attributes:
-        root.leaf_label = examples[target_attribute].mode()[0] == positive_value
+        root.label = examples[target_attribute].mode()[0] == positive_value
         return root
     ig = []
     for attribute in attributes:
         ig.append(information_gain(examples, target_attribute, attribute))
     a = attributes[ig.index(max(ig))]
-    # print(a)
-    root.decision_attribute = a
+
+    root.value = a
     values = examples[a].unique()
     for vi in values:
         examples_vi = examples[examples[a] == vi]
         if examples.empty:
             new_node = Node()
-            new_node.leaf_label = examples[target_attribute].mode()[0] == positive_value
+            new_node.label = examples[target_attribute].mode()[0] == positive_value
         else:
             new_node = id3_build_tree(examples_vi, target_attribute, [i for i in attributes if i != a])
         if vi != unknown_value:
-            root.test_branch.update({vi: new_node})
+            root.children.update({vi: new_node})
     return root
+
+def id3_prune(examples, target_attribute, root, tree):
+    if root.label != 'Node':
+        return root
+    for v in root.children.keys():
+        root.children[v] = id3_prune(examples, target_attribute, root.children[v], tree)
+    
+    old_correctness = id3_correctness(tree, examples, target_attribute)
+    root.label = examples[target_attribute].mode()[0] == positive_value
+    new_correctness = id3_correctness(tree, examples, target_attribute)
+    if new_correctness > old_correctness:
+        return root
+    else:
+        root.label = 'Node'
+        return root
+
+def id3_classify(root, example):
+    while root.label == 'Node':
+        if example[root.value] in root.children:
+            root = root.children[example[root.value]]
+        elif example[root.value] == unknown_value:
+            root = root.children[random.choice(list(root.children))]
+        else:
+            return 'Reject'
+    if root.label:
+        return positive_value
+    else:
+        return negative_value
+
+
+def id3_correctness(root, example_test, target_attribute):
+    test_size = len(example_test)
+    correct = 0
+    
+    for i, row in example_test.iterrows():
+        real_result = example_test.loc[i, target_attribute]
+        id3_result = id3_classify(root, example_test.loc[i, :])
+        
+        if real_result == id3_result:
+            correct += 1
+    return correct/test_size
+    
+def split_data_set(data, fraction):
+    threshold = int(fraction * len(data))
+    return data.loc[np.random.choice(df.index, threshold)]
 
 target_attribute = 'play'
 attributes = ['outlook','temp','humidity','wind']
 df = pd.read_csv("play_tennis.csv")
 x = df.drop("day", 1)
 
-id3_tree = id3_build_tree(x, target_attribute, attributes) 
+data_pruning = split_data_set(x, 0.2)
+id3_tree = id3_build_tree(x, target_attribute, attributes)
+id3_tree = id3_prune(data_pruning, target_attribute, id3_tree, id3_tree)
 
-# print_tree(id3_tree)
-
-print(id3_tree.decision_attribute, id3_tree.leaf_label)
 print_tree(id3_tree)
