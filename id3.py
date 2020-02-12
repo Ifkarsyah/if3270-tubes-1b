@@ -35,29 +35,35 @@ def print_tree(root, depth=0, indent=4, requirement=None):
         for req_path, child_node in root.children.items():
             print_tree(child_node, depth=depth+1, requirement=req_path)
 
-def entropy(s, target_attribute):
-    if s.empty:
-        return 0
+def entropy(data, target_attribute):
     ent = 0
-    s_size = len(s)
-    classes = s[target_attribute].unique()
+    size = len(data)
+    
+    if data.empty:
+        return 0
+    
+    classes = data[target_attribute].unique()
     for i in classes:
-        pi = (s[target_attribute] == i).sum()/s_size
-        if pi != 0:
-            ent += -pi * log2(pi)
+        p = (data[target_attribute] == i).sum() / size
+        if p != 0:
+            ent += -p * log2(p)
+    
     return ent
 
-def information_gain(s, target_attribute, attribute):
-    s_size = len(s)                            # |S|
-    entropy_s = entropy(s, target_attribute)   # Entropy(S)
-    values = s[attribute].unique()
-    weighted_entropy_summary = 0
-    for v in values:                           # ∑
-        s_v = s[s[attribute] == v]             # Sv
-        s_size_v = len(s_v)                    # |Sv|
-        entropy_s_v = entropy(s_v, target_attribute)
-        weighted_entropy_summary += s_size_v * entropy_s_v / s_size
-    return entropy_s - weighted_entropy_summary
+def information_gain(data, target_attribute, attribute):
+    size = len(data)
+    entropy_s = entropy(data, target_attribute)
+    
+    single_attribute = data[attribute].unique()
+    entropy_single = 0
+    
+    for attr in single_attribute:
+        s_attr = data[data[attribute] == attr]
+
+        entropy_temp = entropy(s_attr, target_attribute)
+        entropy_single += len(s_attr) * entropy_temp / size
+    
+    return entropy_s - entropy_single
 
 def id3_build_tree(examples, target_attribute, attributes):
     root = Node()
@@ -73,38 +79,35 @@ def id3_build_tree(examples, target_attribute, attributes):
     if not attributes:
         root.label = examples[target_attribute].mode()[0] == positive_value
         return root
+        
     ig = []
     for attribute in attributes:
         ig.append(information_gain(examples, target_attribute, attribute))
-    a = attributes[ig.index(max(ig))]
+    
+    A = attributes[ig.index(max(ig))]
 
-    root.value = a
-    values = examples[a].unique()
+    root.value = A
+    values = examples[A].unique()
+
     for vi in values:
-        examples_vi = examples[examples[a] == vi]
+        examples_vi = examples[examples[A] == vi]
+        
         if examples.empty:
             new_node = Node()
             new_node.label = examples[target_attribute].mode()[0] == positive_value
+        
         else:
-            new_node = id3_build_tree(examples_vi, target_attribute, [i for i in attributes if i != a])
+            next_attr = []
+            for attr in attributes:
+                if attr != A: 
+                    next_attr.append(attr)
+
+            new_node = id3_build_tree(examples_vi, target_attribute, next_attr)
+        
         if vi != unknown_value:
             root.children.update({vi: new_node})
-    return root
 
-def id3_prune(examples, target_attribute, root, tree):
-    if root.label != 'Node':
-        return root
-    for v in root.children.keys():
-        root.children[v] = id3_prune(examples, target_attribute, root.children[v], tree)
-    
-    old_correctness = id3_correctness(tree, examples, target_attribute)
-    root.label = examples[target_attribute].mode()[0] == positive_value
-    new_correctness = id3_correctness(tree, examples, target_attribute)
-    if new_correctness > old_correctness:
-        return root
-    else:
-        root.label = 'Node'
-        return root
+    return root
 
 def id3_classify(root, example):
     while root.label == 'Node':
@@ -114,6 +117,7 @@ def id3_classify(root, example):
             root = root.children[random.choice(list(root.children))]
         else:
             return 'Reject'
+
     if root.label:
         return positive_value
     else:
@@ -131,6 +135,23 @@ def id3_correctness(root, example_test, target_attribute):
         if real_result == id3_result:
             correct += 1
     return correct/test_size
+
+def id3_prune(examples, target_attribute, root, tree):
+    if root.label != 'Node':
+        return root
+    
+    for val in root.children.keys():
+        root.children[val] = id3_prune(examples, target_attribute, root.children[val], tree)
+    
+    old_correctness = id3_correctness(tree, examples, target_attribute)
+    root.label = examples[target_attribute].mode()[0] == positive_value
+    new_correctness = id3_correctness(tree, examples, target_attribute)
+    
+    if new_correctness > old_correctness:
+        return root
+    else:
+        root.label = 'Node'
+        return root
     
 def split_data_set(data, fraction):
     threshold = int(fraction * len(data))
