@@ -16,15 +16,21 @@ class Node:
 
 def print_tree(tree, depth=0, indent=4, requirement=None):
     if requirement is None:
-        print("{}{}".format(" "*(indent*depth), tree.value))
+        print("{}{}".format(" "*(indent*depth), tree.decision_attribute))
     else:
-        if tree.children is None:
+        if tree.test_branch is None:
             str_format = "{} == {} --> {}"
+            if root.leaf_label:
+                print(str_format.format(" " * (indent*depth), requirement, positive_value))
+
+            else:
+                print(str_format.format(" " * (indent*depth), requirement, positive_value))
+
         else:
             str_format = "{} == {} --> ({} ?)"
-        print(str_format.format(" " * (indent*depth), requirement, tree.value))
-    if tree.children is not None:
-        for req_path, child_node in tree.children.items():
+            print(str_format.format(" " * (indent*depth), requirement, tree.decision_attribute))
+    if tree.test_branch is not None:
+        for req_path, child_node in tree.test_branch.items():
             print_tree(child_node, depth=depth+1, requirement=req_path)
 
 # def print_tree(root, key_value_string, target_attribute):
@@ -102,4 +108,4 @@ id3_tree = id3_build_tree(x, target_attribute, attributes)
 # print_tree(id3_tree)
 
 print(id3_tree.decision_attribute, id3_tree.leaf_label)
-print_tree(id3_tree, '', target_attribute)
+print_tree(id3_tree)
