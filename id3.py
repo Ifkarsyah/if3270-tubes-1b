@@ -63,17 +63,38 @@ def entropy(s, target_attribute):
     return ent
 
 
-def information_gain(s, target_attribute, attribute):
+def information_gain(s, target_attribute, attribute, split=False):
     s_size = len(s)                            # |S|
     entropy_s = entropy(s, target_attribute)   # Entropy(S)
     values = s[attribute].unique()
     weighted_entropy_summary = 0
+    split_entropy = 0
+    
     for v in values:                           # ∑
         s_v = s[s[attribute] == v]             # Sv
         s_size_v = len(s_v)                    # |Sv|
+        
+        if split:
+            # Calculate split entropy = - ∑ (|Sv| / |S|) log2 (|Sv| / |S|) 
+            split_entropy += (-1.0) * ((s_size_v * 1.0 / s_size) * log2(s_size_v * 1.0 / s_size))
+        
         entropy_s_v = entropy(s_v, target_attribute)
         weighted_entropy_summary += s_size_v * entropy_s_v / s_size
-    return entropy_s - weighted_entropy_summary
+
+    gain = entropy_s - weighted_entropy_summary
+
+    if split:
+        # Return Gain Ratio
+        try:
+            gain_ratio = gain * 1.0 / split_entropy
+            return gain_ratio
+        except ZeroDivisionError:
+            raise ZeroDivisionError("Error, split entropy cannot be zero")
+        
+    else:
+        # Return Information Gain
+        return gain
+
 
 def id3_build_tree(examples, target_attribute, attributes):
     root = Node()
@@ -88,7 +109,7 @@ def id3_build_tree(examples, target_attribute, attributes):
         return root
     ig = []
     for attribute in attributes:
-        ig.append(information_gain(examples, target_attribute, attribute))
+        ig.append(information_gain(examples, target_attribute, attribute, True))
     a = attributes[ig.index(max(ig))]
     # print(a)
     root.decision_attribute = a
