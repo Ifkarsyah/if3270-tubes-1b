@@ -48,19 +48,24 @@ def entropy(data, target_attribute):
     
     return ent
 
-def information_gain(data, target_attribute, attribute):
+def information_gain(data, target_attribute, attribute, split=False):
     size = len(data)                            # |S|
     entropy_s = entropy(data, target_attribute)   # Entropy(S)
-
     entropy_single = 0
+    split_entropy = 0
 
     if isinstance(attribute, str):
         single_attribute = data[attribute].unique()
         for attr in single_attribute:
             s_attr = data[data[attribute] == attr]
 
+            if split:
+                # Calculate split entropy = - ∑ (|Sv| / |S|) log2 (|Sv| / |S|) 
+                split_entropy += (-1.0) * ((len(s_attr) * 1.0 / size) * log2(len(s_attr) * 1.0 / size))
+
             entropy_temp = entropy(s_attr, target_attribute)
             entropy_single += len(s_attr) * entropy_temp / size
+
 
     else: # attribute = (sepal, 2.5)
         attr_name, split_point = attribute
@@ -75,7 +80,19 @@ def information_gain(data, target_attribute, attribute):
         if size != 0:
             entropy_single += len(s_attr) * entropy_temp / size
 
-    return entropy_s - entropy_single
+    gain = entropy_s - entropy_single
+
+    if split:
+        # Return Gain Ratio
+        try:
+            gain_ratio = gain * 1.0 / split_entropy
+            return gain_ratio
+        except ZeroDivisionError:
+            raise ZeroDivisionError("Error, split entropy cannot be zero")
+        
+    else:
+        # Return Information Gain
+        return gain
     
 def id3_build_tree(examples, goal_values, target_attribute, attributes):
     root = Node()
@@ -223,10 +240,25 @@ def get_attributes_and_split(s, attr_name):
         attributes_and_split.append((attr_name, split_point))
     return attributes_and_split
 
+def replace_missing_atribute(df):
+    row = df.shape[0]
+    cols = list(df.columns)
+    for i in range(0, row):
+        for col in cols:
+            if (df.at[i, col] == '?'):
+                target = df.at[i, cols[-1]]
+                temp_df = df[df[cols[-1]] == target]
+                most_common_attr_values = temp_df.mode()
+                # nilai yang diassign
+                col_values = most_common_attr_values[col][0]
+                df.at[i, col] = col_values
+    return df
+
 # Main
 
 df = pd.read_csv("play_tennis.csv")
 df = df.drop("day", 1)
+df = replace_missing_atribute(df)
 
 target_attribute = list(df.columns)[-1]
 goal_values = df[target_attribute].unique()

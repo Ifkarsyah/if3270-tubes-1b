@@ -1,4 +1,4 @@
-"day","outlook","temp","humidity","wind","play"
+day,outlook,temp,humidity,wind,play
 D1,Sunny,Hot,High,Weak,Yes
 D2,Sunny,Hot,High,Strong,Yes
 D3,Overcast,Hot,High,Weak,No
@@ -12,4 +12,4 @@ D10,Rain,Mild,Normal,Weak,Yes
 D11,Sunny,Mild,Normal,Strong,Yes
 D12,Overcast,Mild,High,Strong,Yes
 D13,Overcast,Hot,Normal,Weak,Yes
-D14,Rain,Hot,High,Strong,No
+D14,Rain,Hot,?,Strong,No
