@@ -14,6 +14,20 @@ class Node:
         self.children_label = {} # Menyimpan data frekuensi target dari root node
         self.label = 'Node' # Menyimpan label dari daun node
 
+'''
+Mencetak pohon secara rekursif
+Pohon dengan bentuk
+    a
+   / \
+  x   y
+ /     \
+b       c
+
+akan dicetak menjadi bentuk
+a
+    == x --> b
+    == y --> c 
+'''
 def print_tree(root, goal_values, depth=0, indent=4, requirement=None):
     if requirement is None:
         print("{}{}".format(" " * (indent * depth), root.value))
@@ -33,6 +47,7 @@ def print_tree(root, goal_values, depth=0, indent=4, requirement=None):
         for req_path, child_node in root.children.items():
             print_tree(child_node, goal_values, depth=depth+1, requirement=req_path)
 
+# Implementasi fungsi perhitungan entropi dengan formula ∑ -p log2(p)
 def entropy(data, target_attribute):
     ent = 0
     size = len(data)
@@ -48,17 +63,20 @@ def entropy(data, target_attribute):
     
     return ent
 
+
 def information_gain(data, target_attribute, attribute, split=False):
     size = len(data) # |S|
     entropy_s = entropy(data, target_attribute) # Entropy(S)
     entropy_single = 0
     split_entropy = 0
 
+    # Handle discrete value
     if isinstance(attribute, str):
         single_attribute = data[attribute].unique()
         for attr in single_attribute:
             s_attr = data[data[attribute] == attr]
 
+            # Alternative measures for selecting attributes: gain ratio.
             if split:
                 # Calculate split entropy = - ∑ (|Sv| / |S|) log2 (|Sv| / |S|) 
                 split_entropy += (-1.0) * ((len(s_attr) * 1.0 / size) * log2(len(s_attr) * 1.0 / size))
@@ -67,6 +85,7 @@ def information_gain(data, target_attribute, attribute, split=False):
             entropy_single += len(s_attr) * entropy_temp / size
 
 
+    # Handle continuous value
     else: # attribute = (sepal, 2.5)
         attr_name, split_point = attribute
 
@@ -84,6 +103,7 @@ def information_gain(data, target_attribute, attribute, split=False):
 
     gain = entropy_s - entropy_single
 
+    # Alternative measures for selecting attributes: gain ratio.
     if split:
         # Return Gain Ratio
         try:
@@ -96,10 +116,29 @@ def information_gain(data, target_attribute, attribute, split=False):
         # Return Information Gain
         return gain
 
+'''
+    Create a root node for the tree
+    If all examples are positive, Return the single-node tree Root, with label = +.
+    If all examples are negative, Return the single-node tree Root, with label = -.
+    If number of predicting attributes is empty, then Return the single node tree Root,
+    with label = most common value of the target attribute in the examples.
+    Otherwise Begin
+        A <- The Attribute that best classifies examples.
+        Decision Tree attribute for Root = A.
+        For each possible value, v_i, of A,
+            Add a new tree branch below Root, corresponding to the test A = v_i.
+            Let Examples(v_i) be the subset of examples that have the value v_i for A
+            If Examples(v_i) is empty
+                Then below this new branch add a leaf node with label = most common target value in the examples
+            Else below this new branch add the subtree ID3 (Examples(v_i), Target_Attribute, Attributes – {A})
+    End
+    Return Root
+'''
 def id3_build_tree(examples, goal_values, target_attribute, attributes):
     root = Node()
     children_label = {}
 
+    # Program dapat menghandle banyak target. Bukan hanya positive dan negative
     for gv in goal_values:
         if (examples[target_attribute] == gv).all():
             root.label = gv
@@ -158,6 +197,8 @@ def id3_build_tree(examples, goal_values, target_attribute, attributes):
     
     else: #CONTINUOUS
         attr_name, split_point = A
+
+        # Lebih kecl (<=)
         examples_vi = examples[examples[attr_name] <= split_point]
         
         if examples.empty:
@@ -176,7 +217,7 @@ def id3_build_tree(examples, goal_values, target_attribute, attributes):
             for i in range(len(goal_values)):
                 children_label[goal_values[i]] += new_node.children_label[goal_values[i]]
 
-        # >
+        # Lebih besar (>)
         examples_vi = examples[examples[attr_name] > split_point]
         
         if examples.empty:
@@ -198,6 +239,7 @@ def id3_build_tree(examples, goal_values, target_attribute, attributes):
         root.children_label = children_label
         return root
 
+# Mengembalikan target dari decision tree yang telah dibuat jika menerima masukan sebuah data uji
 def id3_classify(root, example):
     while root.label == 'Node':
         if (isinstance(root.value, str)):
@@ -216,19 +258,23 @@ def id3_classify(root, example):
             
     return root.label
 
-def id3_correctness(root, example_test, target_attribute):
-    test_size = len(example_test)
+# Mengembalikan tingkat keakuratan dari decision tree jika menerima beberapa data uji
+def id3_correctness(root, data_test, target_attribute):
+    size = len(data_test)
     correct = 0
     
-    for i, _ in example_test.iterrows():
-        real_result = example_test.loc[i, target_attribute]
-        id3_result = id3_classify(root, example_test.loc[i, :])
+    for i, _ in data_test.iterrows():
+        tes_result = data_test.loc[i, target_attribute]
+        id3_result = id3_classify(root, data_test.loc[i, :])
         
-        if real_result == id3_result:
+        if tes_result == id3_result:
             correct += 1
 
-    return correct / test_size
+    return correct / size
 
+# Pruning dilakukan dengan mengubah daun dari sebuah node menjadi mayoritas daun-daun anak-anaknya
+# Selanjutnya dilakukan pengecekan tingkat keakuratan antara decision tree yang awal dengan setelah prunning
+# Jika keakuratan decision tree setelah dilakukan prunning lebih tinggi, maka pruning akan dilakukan
 def id3_prune(examples, target_attribute, root, tree):
     if root.label != 'Node':
         return root
@@ -263,7 +309,7 @@ def split_data_set(data, fraction):
 
     return train_set, test_set
 
-def get_attributes_and_split(s, attr_name):
+def get_attributes_and_split(df, attr_name):
     attributes_and_split = []
     values = sorted(list(set(df[attr_name])))
     
@@ -289,7 +335,6 @@ def replace_missing_atribute(df):
     
     return df
 
-
 def ID3(df):
     df = replace_missing_atribute(df)
     target_attribute = list(df.columns)[-1]
@@ -309,14 +354,8 @@ def ID3(df):
     data_example, data_pruning = split_data_set(df, 0.2)
 
     id3_tree = id3_build_tree(data_example, goal_values, target_attribute, attributes)
-    
     id3_tree = id3_prune(data_pruning, target_attribute, id3_tree, id3_tree)
     print_tree(id3_tree, goal_values)
 
-    # data_tes = pd.read_csv("tes-iris-full.csv")
-    # print("Tingkat keakuratan:", id3_correctness(id3_tree, tes, target_attribute))
-
-# Main
-df = pd.read_csv("iris-full.csv")
-# df = df.drop("day", 1)
-ID3(df)
+    # data_tes = pd.read_csv("iris-tes.csv")
+    # print("Tingkat keakuratan setelah pruning:", id3_correctness(id3_tree, data_tes, target_attribute))
