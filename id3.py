@@ -1,9 +1,9 @@
 # coding=utf-8
+from math import log2
 import ast
 import sys
 import pandas as pd
 import numpy as np
-from math import log2
 import random
 import os
 
@@ -72,11 +72,13 @@ def information_gain(data, target_attribute, attribute, split=False):
 
         s_attr = data[data[attr_name] <= split_point]
         entropy_temp = entropy(s_attr, target_attribute)
+        
         if size != 0:
             entropy_single += len(s_attr) * entropy_temp / size
 
         s_attr = data[data[attr_name] > split_point]
         entropy_temp = entropy(s_attr, target_attribute)
+        
         if size != 0:
             entropy_single += len(s_attr) * entropy_temp / size
 
@@ -108,12 +110,14 @@ def id3_build_tree(examples, goal_values, target_attribute, attributes):
                     children_label[goal_values[i]] = 0
 
             root.children_label = children_label
+            
             return root
 
     if len(attributes) == 0:
         mode = examples[target_attribute].mode()
         if len(mode) > 0:
             root.label = examples[target_attribute].mode()[0]
+        
         return root
         
     ig = []
@@ -149,6 +153,7 @@ def id3_build_tree(examples, goal_values, target_attribute, attributes):
             root.children.update({vi: new_node})
 
         root.children_label = children_label
+        
         return root
     
     else:
@@ -235,14 +240,17 @@ def split_data_set(data, fraction):
 def get_attributes_and_split(s, attr_name):
     attributes_and_split = []
     values = list(set(df[attr_name]))
+    
     for i in range(len(values) - 1):
         split_point = round((values[i] + values[i+1]) / 2, 2)
         attributes_and_split.append((attr_name, split_point))
+    
     return attributes_and_split
 
 def replace_missing_atribute(df):
     row = df.shape[0]
     cols = list(df.columns)
+    
     for i in range(0, row):
         for col in cols:
             if (df.at[i, col] == '?'):
@@ -252,12 +260,13 @@ def replace_missing_atribute(df):
                 # nilai yang diassign
                 col_values = most_common_attr_values[col][0]
                 df.at[i, col] = col_values
+    
     return df
 
 # Main
 
-df = pd.read_csv("play_tennis.csv")
-df = df.drop("day", 1)
+df = pd.read_csv("play.csv")
+# df = df.drop("day", 1)
 df = replace_missing_atribute(df)
 
 target_attribute = list(df.columns)[-1]
@@ -273,7 +282,7 @@ for attr in attributes_name:
 
 data_pruning, data_example = split_data_set(df, 0.2)
 
-attributes = ["outlook","temp","humidity","wind"]
+attributes = ["temperature"]
 
 id3_tree = id3_build_tree(data_example, goal_values, target_attribute, attributes)
 print_tree(id3_tree, goal_values)
