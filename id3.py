@@ -39,18 +39,6 @@ def print_tree(tree, depth=0, indent=4, requirement=None):
         for req_path, child_node in tree.test_branch.items():
             print_tree(child_node, depth=depth+1, requirement=req_path)
 
-# def print_tree(root, key_value_string, target_attribute):
-#     if root.leaf_label != 'Node':
-#         if root.leaf_label:
-#             print(key_value_string + '\b\b\b\b' + ' → ' + '[' + target_attribute + ' = ' + positive_value + ']')
-#         else:
-#             print(key_value_string + '\b\b\b\b' + ' → ' + '[' + target_attribute + ' = ' + negative_value + ']')
-#     if root.leaf_label == 'Node':
-#         for v in root.test_branch.keys():
-#             tmp = key_value_string + '[' + root.decision_attribute + ' = ' + str(v) + '] ' + ' ∧ '
-#             print_tree(root.test_branch[v], tmp, target_attribute)
-#     return
-
 
 def entropy(s, target_attribute):
     if s.empty:
@@ -111,14 +99,18 @@ def id3_build_tree(examples, target_attribute, attributes):
 
 
 def replace_missing_atribute(df):
-    modeList = {}
-    mode = df.mode()
-    for label, content in df.items():
-        modeList[label] = mode[label][0]
 
-    i = 1
-    for label, content in df.iteritems():
-        df[label][df[label] == unknown_value] = modeList[label]
+    row = df.shape[0]
+    cols = list(df.columns)
+    for i in range(0, row):
+        for col in cols:
+            if (df.at[i, col] == unknown_value):
+                target = df.at[i, cols[-1]]
+                temp_df = df[df[cols[-1]] == target]
+                most_common_attr_values = temp_df.mode()
+                # nilai yang diassign
+                col_values = most_common_attr_values[col][0]
+                df.at[i, col] = col_values
     return df
 
 
@@ -126,17 +118,3 @@ target_attribute = 'play'
 attributes = ['outlook', 'temp', 'humidity', 'wind']
 df = pd.read_csv("play_tennis.csv")
 x = df.drop("day", 1)
-
-
-print("SEBELUM:")
-print(x)
-
-
-print("SESUDAH: ")
-print(replace_missing_atribute(x))
-
-
-id3_tree = id3_build_tree(x, target_attribute, attributes)
-
-
-print(id3_tree.decision_attribute, id3_tree.leaf_label)
