@@ -14,24 +14,24 @@ class Node:
         self.children_label = {} # Menyimpan data frekuensi target dari root node
         self.label = 'Node' # Menyimpan label dari daun node
 
-def print_tree(root, global_values, depth=0, indent=4, requirement=None):
+def print_tree(root, goal_values, depth=0, indent=4, requirement=None):
     if requirement is None:
         print("{}{}".format(" " * (indent * depth), root.value))
     
     else:    
         if root.label is 'Node':
-            str_format = "{} == {}--> ({} ?)"
+            str_format = "{} == {} --> ({} ?)"
             print(str_format.format(" " * (indent * depth), requirement, root.value))
 
         else:
             str_format = "{} == {} --> {}"
-            for gv in global_values:
+            for gv in goal_values:
                 if root.label == gv:
                     print(str_format.format(" " * (indent*depth), requirement, gv))
 
     if root.children is not None and root.label is 'Node':
         for req_path, child_node in root.children.items():
-            print_tree(child_node, global_values, depth=depth+1, requirement=req_path)
+            print_tree(child_node, goal_values, depth=depth+1, requirement=req_path)
 
 def entropy(data, target_attribute):
     ent = 0
@@ -95,7 +95,7 @@ def information_gain(data, target_attribute, attribute, split=False):
     else:
         # Return Information Gain
         return gain
-    
+
 def id3_build_tree(examples, goal_values, target_attribute, attributes):
     root = Node()
     children_label = {}
@@ -113,11 +113,15 @@ def id3_build_tree(examples, goal_values, target_attribute, attributes):
             
             return root
 
+    for i in range(len(goal_values)):
+        children_label[goal_values[i]] = 0
+
     if len(attributes) == 0:
         mode = examples[target_attribute].mode()
         if len(mode) > 0:
             root.label = examples[target_attribute].mode()[0]
         
+        root.children_label = children_label
         return root
         
     ig = []
@@ -126,9 +130,6 @@ def id3_build_tree(examples, goal_values, target_attribute, attributes):
     
     A = attributes[ig.index(max(ig))]
     root.value = A
-
-    for i in range(len(goal_values)):
-        children_label[goal_values[i]] = 0
 
     if isinstance(A, str): # DISCRETE
         values = examples[A].unique()
@@ -153,7 +154,6 @@ def id3_build_tree(examples, goal_values, target_attribute, attributes):
             root.children.update({vi: new_node})
 
         root.children_label = children_label
-        
         return root
     
     else: #CONTINUOUS
@@ -163,9 +163,6 @@ def id3_build_tree(examples, goal_values, target_attribute, attributes):
         if examples.empty:
             new_node = Node()
             new_node.label = examples[target_attribute].mode()
-            
-            for gv in goal_values:
-                children_label[gv] = 0
 
         else:
             new_node = id3_build_tree(
@@ -185,9 +182,6 @@ def id3_build_tree(examples, goal_values, target_attribute, attributes):
         if examples.empty:
             new_node = Node()
             new_node.label = examples[target_attribute].mode()
-        
-            for gv in goal_values:
-                children_label[gv] = 0
 
         else:
             new_node = id3_build_tree(
@@ -264,17 +258,17 @@ def id3_prune(examples, target_attribute, root, tree):
         return root
     
 def split_data_set(data, fraction):
-    threshold = int(fraction * len(data))
-    # return data.loc[np.random.choice(df.index, threshold)]
+    train_set = data.sample(frac=0.75, random_state=0)
+    test_set = data.drop(train_set.index)
 
-    return data.loc[0:threshold], data.loc[threshold+1:len(data)]
+    return train_set, test_set
 
 def get_attributes_and_split(s, attr_name):
     attributes_and_split = []
     values = sorted(list(set(df[attr_name])))
     
     for i in range(len(values) - 1):
-        split_point = (values[i] + values[i+1]) / 2
+        split_point = round((values[i] + values[i+1]) / 2, 2)
         attributes_and_split.append((attr_name, split_point))
     
     return attributes_and_split
@@ -312,12 +306,15 @@ def ID3(df):
         else:
             attributes.extend(get_attributes_and_split(df, attr))
 
-    data_pruning, data_example = split_data_set(df, 0.2)
+    data_example, data_pruning = split_data_set(df, 0.2)
 
     id3_tree = id3_build_tree(data_example, goal_values, target_attribute, attributes)
+    
     id3_tree = id3_prune(data_pruning, target_attribute, id3_tree, id3_tree)
     print_tree(id3_tree, goal_values)
 
+    # data_tes = pd.read_csv("tes-iris-full.csv")
+    # print("Tingkat keakuratan:", id3_correctness(id3_tree, tes, target_attribute))
 
 # Main
 df = pd.read_csv("iris-full.csv")
