@@ -17,14 +17,14 @@ def print_tree(root, global_values, depth=0, indent=4, requirement=None):
     
     else:    
         if root.label is 'Node':
-            str_format = "{} == {} / {} / {} --> ({} ?)"
-            print(str_format.format(" " * (indent * depth), requirement, root.children_label, root.label, root.value))
+            str_format = "{} == {}--> ({} ?)"
+            print(str_format.format(" " * (indent * depth), requirement, root.value))
 
         else:
-            str_format = "{} == {} / {} / {} --> {}"
+            str_format = "{} == {} --> {}"
             for gv in goal_values:
                 if root.label == gv:
-                    print(str_format.format(" " * (indent*depth), requirement, root.children_label, root.label, gv))
+                    print(str_format.format(" " * (indent*depth), requirement, gv))
 
     if root.children is not None and root.label is 'Node':
         for req_path, child_node in root.children.items():
@@ -162,7 +162,7 @@ def id3_classify(root, example):
         else:
             return
 
-    print(root.value, '=', root.label)
+    # print(root.value, '=', root.label)
     return root.label
 
 def id3_correctness(root, example_test, target_attribute):
@@ -173,7 +173,7 @@ def id3_correctness(root, example_test, target_attribute):
         real_result = example_test.loc[i, target_attribute]
         id3_result = id3_classify(root, example_test.loc[i, :])
         
-        print('>>>', id3_result)
+        # print('>>>', id3_result)
         if real_result == id3_result:
             correct += 1
 
@@ -196,7 +196,7 @@ def id3_prune(examples, target_attribute, root, tree):
             temp_max = root.children_label[label]
             most_target = label
         
-    root.label = root.children_label[most_target]
+    root.label = most_target
     new_correctness = id3_correctness(tree, examples, target_attribute)
 
     if new_correctness > old_correctness:
@@ -243,6 +243,6 @@ attributes = ["outlook","temp","humidity","wind"]
 id3_tree = id3_build_tree(data_example, goal_values, target_attribute, attributes)
 print_tree(id3_tree, goal_values)
 
-print(data_pruning)
+# print(data_pruning)
 id3_tree = id3_prune(data_pruning, target_attribute, id3_tree, id3_tree)
 print_tree(id3_tree, goal_values)
