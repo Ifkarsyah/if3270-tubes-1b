@@ -267,26 +267,23 @@ def replace_missing_atribute(df):
 
 df = pd.read_csv("play.csv")
 # df = df.drop("day", 1)
-df = replace_missing_atribute(df)
+# df = replace_missing_atribute(df)
 
 target_attribute = list(df.columns)[-1]
 goal_values = df[target_attribute].unique()
 
-attributes_name = list(df.columns)[:-1]
+attributes_name = ["temperature"]
 attributes = []
 for attr in attributes_name:
-    if isinstance(df[attr][0], float):
-        attributes.extend(get_attributes_and_split(df, attr))
-    else:
+    if isinstance(df[attr][0], str):
         attributes.extend(attr)
-
+    else:
+        attributes.extend(get_attributes_and_split(df, attr))
 data_pruning, data_example = split_data_set(df, 0.2)
-
-attributes = ["temperature"]
 
 id3_tree = id3_build_tree(data_example, goal_values, target_attribute, attributes)
 print_tree(id3_tree, goal_values)
 
-# print(data_pruning)
-id3_tree = id3_prune(data_pruning, target_attribute, id3_tree, id3_tree)
-print_tree(id3_tree, goal_values)
+
+# id3_tree = id3_prune(data_pruning, target_attribute, id3_tree, id3_tree)
+# print_tree(id3_tree, goal_values)
