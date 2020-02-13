@@ -2,12 +2,7 @@
 import pandas as pd
 import numpy as np
 from math import log2
-from sklearn.preprocessing import LabelEncoder
 import random
-
-positive_value = 'Yes'
-negative_value = 'No'
-unknown_value = '?'
 
 class Node:
     def __init__(self):
@@ -16,25 +11,24 @@ class Node:
         self.children_label = {}
         self.label = 'Node'
 
-def print_tree(root, depth=0, indent=4, requirement=None):
+def print_tree(root, global_values, depth=0, indent=4, requirement=None):
     if requirement is None:
         print("{}{}".format(" " * (indent * depth), root.value))
     
     else:    
         if root.label is 'Node':
-            str_format = "{} == {} --> ({} ?)"
-            print(str_format.format(" " * (indent * depth), requirement, root.value))
+            str_format = "{} == {} / {} / {} --> ({} ?)"
+            print(str_format.format(" " * (indent * depth), requirement, root.children_label, root.label, root.value))
 
         else:
-            str_format = "{} == {} --> {}"
-            if root.label:
-                print(str_format.format(" " * (indent * depth), requirement, positive_value))
-            else:
-                print(str_format.format(" " * (indent * depth), requirement, negative_value))
+            str_format = "{} == {} / {} / {} --> {}"
+            for gv in goal_values:
+                if root.label == gv:
+                    print(str_format.format(" " * (indent*depth), requirement, root.children_label, root.label, gv))
 
     if root.children is not None and root.label is 'Node':
         for req_path, child_node in root.children.items():
-            print_tree(child_node, depth=depth+1, requirement=req_path)
+            print_tree(child_node, global_values, depth=depth+1, requirement=req_path)
 
 def entropy(data, target_attribute):
     ent = 0
@@ -52,43 +46,54 @@ def entropy(data, target_attribute):
     return ent
 
 def information_gain(data, target_attribute, attribute):
-    size = len(data)
-    entropy_s = entropy(data, target_attribute)
-    
-    single_attribute = data[attribute].unique()
+    size = len(data)                            # |S|
+    entropy_s = entropy(data, target_attribute)   # Entropy(S)
+
     entropy_single = 0
-    
-    for attr in single_attribute:
-        s_attr = data[data[attribute] == attr]
 
+    if isinstance(attribute, str):
+        single_attribute = data[attribute].unique()
+        for attr in single_attribute:
+            s_attr = data[data[attribute] == attr]
+
+            entropy_temp = entropy(s_attr, target_attribute)
+            entropy_single += len(s_attr) * entropy_temp / size
+
+    else: # attribute = (sepal, 2.5)
+        attr_name, split_point = attribute
+
+        s_attr = data[data[attr_name] <= split_point]
         entropy_temp = entropy(s_attr, target_attribute)
-        entropy_single += len(s_attr) * entropy_temp / size
-    
-    return entropy_s - entropy_single
+        if size != 0:
+            entropy_single += len(s_attr) * entropy_temp / size
 
-def id3_build_tree(examples, target_attribute, attributes):
+        s_attr = data[data[attr_name] > split_point]
+        entropy_temp = entropy(s_attr, target_attribute)
+        if size != 0:
+            entropy_single += len(s_attr) * entropy_temp / size
+
+    return entropy_s - entropy_single
+    
+def id3_build_tree(examples, goal_values, target_attribute, attributes):
     root = Node()
     children_label = {}
 
-    if (examples[target_attribute] == positive_value).all():
-        root.label = True
-        children_label[positive_value] = len(examples)
-        children_label[negative_value] = 0
-        root.children_label = children_label
-        
-        return root
-    
-    if (examples[target_attribute] == negative_value).all():
-        root.label = False
-        children_label[negative_value] = len(examples)
-        children_label[positive_value] = 0
-        root.children_label = children_label
-        
-        return root
-    
-    if not attributes:
-        root.label = examples[target_attribute].mode()[0] == positive_value
-        
+    for gv in goal_values:
+        if (examples[target_attribute] == gv).all():
+            root.label = gv
+            children_label[gv] = len(examples)
+
+            for i in range(len(goal_values)):
+                if (goal_values[i] != gv):
+                    children_label[goal_values[i]] = 0
+
+            root.children_label = children_label
+            return root
+
+    if len(attributes) == 0:
+        mode = examples[target_attribute].mode()
+        if len(mode) > 0:
+            root.label = examples[target_attribute].mode()[0]
         return root
         
     ig = []
@@ -96,51 +101,69 @@ def id3_build_tree(examples, target_attribute, attributes):
         ig.append(information_gain(examples, target_attribute, attribute))
     
     A = attributes[ig.index(max(ig))]
-
     root.value = A
-    values = examples[A].unique()
 
-    children_label[positive_value] = 0
-    children_label[negative_value] = 0 
+    for i in range(len(goal_values)):
+        children_label[goal_values[i]] = 0
 
-    for vi in values:
-        examples_vi = examples[examples[A] == vi]
-        
-        if examples.empty:
-            new_node = Node()
-            new_node.label = examples[target_attribute].mode()[0] == positive_value
-        
-        else:
-            next_attr = []
-            for attr in attributes:
-                if attr != A: 
-                    next_attr.append(attr)
+    if isinstance(A, str):
+        values = examples[A].unique()
+        for vi in values:
+            examples_vi = examples[examples[A] == vi]
+            
+            if examples.empty:
+                new_node = Node()
+                new_node.label = examples[target_attribute].mode()[0]
+            
+            else:
+                next_attr = []
+                for attr in attributes:
+                    if attr != A: 
+                        next_attr.append(attr)
 
-            new_node = id3_build_tree(examples_vi, target_attribute, next_attr)
+                new_node = id3_build_tree(examples_vi, goal_values, target_attribute, next_attr)
 
-            children_label[positive_value] += new_node.children_label[positive_value]
-            children_label[negative_value] += new_node.children_label[negative_value]
-
-        if vi != unknown_value:
+                for i in range(len(goal_values)):
+                    children_label[goal_values[i]] += new_node.children_label[goal_values[i]]
+ 
             root.children.update({vi: new_node})
 
-    root.children_label = children_label
-    return root
+        root.children_label = children_label
+        return root
+    
+    else:
+        attr_name, split_point = A
+        examples_vi = examples[examples[attr_name] <= split_point]
+        if examples.empty:
+            new_node = Node()
+            new_node.label = examples[target_attribute].mode()
+        else:
+            new_node = id3_build_tree(examples_vi, goal_values, target_attribute, 
+            [i for i in attributes if (i != A and i[1] <= split_point)]
+            )
+            root.children.update({'<=' + str(split_point): new_node})
+        # >
+        examples_vi = examples[examples[attr_name] > split_point]
+        if examples.empty:
+            new_node = Node()
+            new_node.label = examples[target_attribute].mode()
+        else:
+            new_node = id3_build_tree(examples_vi, goal_values, target_attribute, 
+            [i for i in attributes if (i != A and i[1] > split_point)]
+            )
+            root.children.update({'>' + str(split_point): new_node})
+
+        return root
 
 def id3_classify(root, example):
     while root.label == 'Node':
         if example[root.value] in root.children:
             root = root.children[example[root.value]]
-        elif example[root.value] == unknown_value:
-            root = root.children[random.choice(list(root.children))]
         else:
             return
 
-    if root.label:
-        return positive_value
-    else:
-        return negative_value
-
+    print(root.value, '=', root.label)
+    return root.label
 
 def id3_correctness(root, example_test, target_attribute):
     test_size = len(example_test)
@@ -150,6 +173,7 @@ def id3_correctness(root, example_test, target_attribute):
         real_result = example_test.loc[i, target_attribute]
         id3_result = id3_classify(root, example_test.loc[i, :])
         
+        print('>>>', id3_result)
         if real_result == id3_result:
             correct += 1
 
@@ -188,15 +212,37 @@ def split_data_set(data, fraction):
 
     return data.loc[0:threshold], data.loc[threshold+1:len(data)]
 
-target_attribute = 'play'
-attributes = ['outlook','temp','humidity','wind']
+def get_attributes_and_split(s, attr_name):
+    attributes_and_split = []
+    values = list(set(df[attr_name]))
+    for i in range(len(values) - 1):
+        split_point = round((values[i] + values[i+1]) / 2, 2)
+        attributes_and_split.append((attr_name, split_point))
+    return attributes_and_split
+
+# Main
+
 df = pd.read_csv("play_tennis.csv")
-x = df.drop("day", 1)
+df = df.drop("day", 1)
 
-data_pruning, data_example = split_data_set(x, 0.2)
+target_attribute = list(df.columns)[-1]
+goal_values = df[target_attribute].unique()
 
-id3_tree = id3_build_tree(data_example, target_attribute, attributes)
-print_tree(id3_tree)
+attributes_name = list(df.columns)[:-1]
+attributes = []
+for attr in attributes_name:
+    if isinstance(df[attr][0], float):
+        attributes.extend(get_attributes_and_split(df, attr))
+    else:
+        attributes.extend(attr)
 
+data_pruning, data_example = split_data_set(df, 0.2)
+
+attributes = ["outlook","temp","humidity","wind"]
+
+id3_tree = id3_build_tree(data_example, goal_values, target_attribute, attributes)
+print_tree(id3_tree, goal_values)
+
+print(data_pruning)
 id3_tree = id3_prune(data_pruning, target_attribute, id3_tree, id3_tree)
-print_tree(id3_tree)
+print_tree(id3_tree, goal_values)
