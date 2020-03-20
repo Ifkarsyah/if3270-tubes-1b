@@ -16,7 +16,7 @@ df_test = df.drop(df_train.index)
 id3_result = ID3(df_train)  # why error if use df_train
 
 # predict
-pred_y = predict(id3_result, df_test, list(df.columns)[-1])
+pred_y = predict(id3_result, df_test)
 real_y = df_test[df_test.columns[-1]].values.tolist()
 
 results = confusion_matrix(pred_y, real_y)

@@ -278,18 +278,11 @@ def id3_classify(root, example):
 # Mengembalikan tingkat keakuratan dari decision tree jika menerima beberapa data uji
 
 
-def predict(root, data_test, target_attribute):
-    size = len(data_test)
-    correct = 0
-
+def predict(root, data_test):
     result = []
     for i, _ in data_test.iterrows():
-        tes_result = data_test.loc[i, target_attribute]
         id3_result = id3_classify(root, data_test.loc[i, :])
-
-        # if tes_result == id3_result:
-        #     correct += 1
-        result.append(tes_result)
+        result.append(id3_result)
     return result
     # return correct / size
 
@@ -306,7 +299,7 @@ def id3_prune(examples, target_attribute, root, tree):
         root.children[val] = id3_prune(
             examples, target_attribute, root.children[val], tree)
 
-    old_correctness = predict(tree, examples, target_attribute)
+    old_correctness = predict(tree, examples)
 
     temp_max = 0
     most_target = ''
@@ -318,7 +311,7 @@ def id3_prune(examples, target_attribute, root, tree):
 
     root.label = most_target
 
-    new_correctness = predict(tree, examples, target_attribute)
+    new_correctness = predict(tree, examples)
 
     if new_correctness > old_correctness:
         return root
